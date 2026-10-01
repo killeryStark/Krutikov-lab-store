@@ -1,0 +1,30 @@
+manifestVersion: 1
+id: krutikov-lab-comfyui
+category: ai
+name: ComfyUI
+version: "0.33.1"
+tagline: Редактор воркфлоу и библиотека под облачную генерацию
+description: >-
+  ComfyUI на Umbrel как редактор воркфлоу и их библиотека, а не как локальный генератор.
+
+
+  Сценарий: на Raspberry Pi 5 ничего не генерируем (нет GPU, CPU-режим только чтобы интерфейс жил), модели-капвейты не качаем. В интерфейсе ставим ноды облачных провайдеров (RunPod, Replicate, fal и т.п.), вписываем API-ключи в самих нодах и собираем workflow. Готовые workflow хранятся в данных приложения и экспортируются JSON на GPU-сервера, где уже идёт тяжёлая генерация.
+
+
+  Хранение только внутреннее: ${APP_DATA_DIR}/data проброшено в /data контейнера (воркфлоу, custom_nodes, настройки). Внешние USB-диски и сетевые хранилища не пробрасываются. API-ключи живут только в твоём браузере/нодах, в пакет не зашиты.
+
+
+  Образ: 1panel/comfyui 0.33.1 (linux/amd64 + linux/arm64). Официального Docker-образа ComfyUI нет, это community-сборка 1Panel.
+releaseNotes: >-
+  Смена сценария: ComfyUI как редактор и библиотека workflow под облачную генерацию, локальный инференс на Pi отключён из сценария.
+developer: Comfy-Org
+website: https://www.comfy.org/
+dependencies: []
+repo: https://github.com/comfyanonymous/ComfyUI
+support: https://github.com/comfyanonymous/ComfyUI/issues
+port: 8188
+gallery: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+submitter: Krutikov Lab

@@ -4,6 +4,7 @@ category: ai
 name: ComfyUI
 version: "0.33.1"
 tagline: Редактор воркфлоу и библиотека под облачную генерацию
+icon: https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/master/krutikov-lab-comfyui/icon.png
 description: >-
   ComfyUI на Umbrel как редактор воркфлоу и их библиотека, а не как локальный генератор.
 

@@ -1,0 +1,22 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      # Формат: <app-id>_<service>_1
+      APP_HOST: krutikov-lab-comfyui_comfyui_1
+      APP_PORT: 8188
+
+  comfyui:
+    # Multi-arch манифест (amd64 + arm64), проверен 01.10.2026:
+    # docker buildx imagetools inspect 1panel/comfyui:0.33.1
+    image: 1panel/comfyui:0.33.1@sha256:a264003f5223f153972a2701e995576d49b7c1f4bf5a75b0237cc817bd1367a8
+    # Entrypoint образа: tini + docker-entrypoint.sh, дефолтный Cmd ["comfyui"].
+    # Явно форсируем CPU-режим для Pi 5 без NVIDIA GPU.
+    command: ["comfyui", "--listen", "0.0.0.0", "--port", "8188", "--cpu", "--preview-method", "none"]
+    restart: on-failure
+    init: true
+    volumes:
+      # Единственный персистентный маунт: образ объявляет VOLUME /data (Workdir /opt/ComfyUI).
+      # Модели, input, output живут внутри данных приложения, наружу USB/сеть не отдаём.
+      - ${APP_DATA_DIR}/data:/data

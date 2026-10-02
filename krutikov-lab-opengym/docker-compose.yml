@@ -1,0 +1,71 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      # Формат: <app-id>_<service>_1
+      APP_HOST: krutikov-lab-opengym_web_1
+      APP_PORT: 80
+
+  api:
+    # Multi-arch (amd64 + arm64), 01.10.2026:
+    # https://github.com/DuarteSantos8/openGym/pkgs/container/opengym-api
+    image: ghcr.io/duartesantos8/opengym-api:1.3.9@sha256:e0232eb55bc193f9d3c6938105e6202114eb02d1dd2a9c2476c7e486435e9aab
+    restart: on-failure
+    init: true
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+      # API доступен только через web-контейнер, он перезаписывает
+      # X-Forwarded-For настоящим адресом — троттлинг считает честно.
+      - TRUST_PROXY=1
+      # Passkey привязаны к точному хосту из адресной строки.
+      - RP_ID=${DEVICE_DOMAIN_NAME}
+      - ORIGIN=https://${DEVICE_DOMAIN_NAME}:${APP_PROXY_PORT}
+      - RP_NAME=openGym
+      # Вход по паролю рядом с passkey: нужен для обычного http в LAN
+      # и как восстановление. Пароль задаётся в Settings профиля.
+      - PASSWORD_LOGIN=1
+    volumes:
+      # Профили, passkey, история, секрет сессий — бэкапить.
+      - ${APP_DATA_DIR}/data:/data
+      # Живые токены провайдера Coach: рядом с data специально,
+      # чтобы не уезжали в бэкап (см. backupIgnore в манифесте).
+      - ${APP_DATA_DIR}/coach-auth:/coach-auth
+
+  web:
+    # Multi-arch (amd64 + arm64), 01.10.2026.
+    image: ghcr.io/duartesantos8/opengym-web:1.3.9@sha256:9d19807f28a59a449b26a009f96764fc93fc6ea78b139891ee2010146d7ea792
+    restart: on-failure
+    init: true
+    depends_on:
+      - api
+      - media
+    environment:
+      - NGINX_PORT=80
+      - BACKEND=api
+      - PORT=3000
+    volumes:
+      - ${APP_DATA_DIR}/media/img:/usr/share/nginx/html/img:ro
+      - ${APP_DATA_DIR}/media/gif:/usr/share/nginx/html/gif:ro
+
+  media:
+    # One-shot: разово качает картинки упражнений (~140 МБ) из апстрима,
+    # пропускает если уже есть. Метаданные MIT, медиа © Gym visual
+    # (апстрим openGym их не редистрибьютит, см. NOTICE.md).
+    image: alpine/git:v2.54.0@sha256:832b1cd1a271509f3d5272a1a62d4cb2ab1a53426ebde1f6c2cb7349f907dc6f
+    restart: "no"
+    volumes:
+      - ${APP_DATA_DIR}/media/img:/out/img
+      - ${APP_DATA_DIR}/media/gif:/out/gif
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ -z "$$(ls -A /out/img 2>/dev/null)" ]; then
+          echo "Downloading exercise media (~140 MB, one time)..."
+          git clone --depth 1 https://github.com/hasaneyldrm/exercises-dataset /tmp/ds
+          cp /tmp/ds/images/*.jpg /out/img/ && cp /tmp/ds/videos/*.gif /out/gif/
+          echo "Exercise media ready."
+        else
+          echo "Exercise media already present - skipping download."
+        fi

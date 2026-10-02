@@ -1,0 +1,29 @@
+manifestVersion: 1
+id: krutikov-lab-opengym
+category: files
+name: openGym
+version: "1.3.9"
+tagline: Дневник тренировок с passkey-входом и синхронизацией
+icon: https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/master/krutikov-lab-opengym/icon.png
+description: >-
+  openGym на Umbrel: routines, сессии с таймерами, прогрессия весов, статистика, PWA на телефон.
+
+
+  Важно про вход: passkey работают только по HTTPS (открывай приложение по https-адресу Umbrel). По обычному http заходи по паролю (уже включён в пакете) или гостем без аккаунта. Пароль задаётся в Settings после первого входа.
+
+
+  Первый старт докачивает ~140 МБ картинок упражнений, потерпи пару минут. Данные лежат внутри приложения: профили, история, секрет сессий. Админка и invite-режим настраиваются вторым шагом — скажи, помогу через файлы приложения.
+releaseNotes: ""
+developer: Duarte Santos
+website: https://opengym.duarte-santos.ch
+dependencies: []
+repo: https://github.com/DuarteSantos8/openGym
+support: https://github.com/DuarteSantos8/openGym/issues
+port: 8080
+gallery: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+submitter: Krutikov Lab
+backupIgnore:
+  - coach-auth/*

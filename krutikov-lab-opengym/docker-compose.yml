@@ -20,8 +20,12 @@ services:
       # X-Forwarded-For настоящим адресом — троттлинг считает честно.
       - TRUST_PROXY=1
       # Passkey привязаны к точному хосту из адресной строки.
+      # Дефолт — http по имени устройства (как открывает дашборд Umbrel).
+      # Открываешь по другому адресу (короткое имя/IP) — ORIGIN обязан
+      # совпасть с адресной строкой один в один, иначе API ответит
+      # "cross-origin request refused". Правится оверрайдом env.
       - RP_ID=${DEVICE_DOMAIN_NAME}
-      - ORIGIN=https://${DEVICE_DOMAIN_NAME}:${APP_PROXY_PORT}
+      - ORIGIN=http://${DEVICE_DOMAIN_NAME}:${APP_PROXY_PORT}
       - RP_NAME=openGym
       # Вход по паролю рядом с passkey: нужен для обычного http в LAN
       # и как восстановление. Пароль задаётся в Settings профиля.

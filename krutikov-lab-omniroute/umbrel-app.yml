@@ -1,0 +1,38 @@
+manifestVersion: 1
+id: krutikov-lab-omniroute
+category: ai
+name: OmniRoute
+version: "3.8.53"
+tagline: Единый шлюз к LLM-провайдерам с OpenAI-совместимым API
+icon: https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/master/krutikov-lab-omniroute/icon.png
+description: >-
+  OmniRoute — один эндпоинт для всех LLM. IDE и CLI (Claude Code, Cursor, Cline, OpenCode и другие) настраиваются один раз на общий адрес .../v1, а OmniRoute сам выбирает провайдера и модель, держит несколько подключений, кэш, сжатие промптов и живую статистику. Настраивается через веб-дашборд.
+
+
+  Вход в дашборд: пароль приложения. Он тот же, что показывает Umbrel в карточке приложения (кнопка с кредами) — INITIAL_PASSWORD сюда проброшен из APP_PASSWORD. После первого входа пароль можно сменить прямо в дашборде, в файлах пакета он не зашит.
+
+
+  На Raspberry Pi 5 работает только сам роутинг: SQLite, кэш, сжатие промптов, веб-дашборд. Локального инференса и GPU здесь нет, все запросы уходят к облачным провайдерам (API-ключи, OAuth, free-тиры), которые подключаешь в дашборде.
+
+
+  Данные (SQLite, настройки, подключения провайдеров) лежат в ${APP_DATA_DIR}/data и проброшены в /app/data. Креды провайдеров шифруются на диске (AES-256-GCM), ключ шифрования стабилен между перезапусками. Внешние диски и сетевые хранилища не подключаются.
+
+
+  Образ: diegosouzapw/omniroute:main (linux/amd64 + linux/arm64), сборка от 16.10.2026, тег зафиксирован по digest. Это ветка release/v3.8.53.
+
+
+  Ограничение пакета: live-обновления дашборда идут по WebSocket на отдельном порту 20132, а Umbrel проксирует только один порт приложения, поэтому live-WS выключен — остальные страницы и API работают полностью. Первый старт занимает до минуты: миграции SQLite.
+releaseNotes: >-
+  Первый релиз в сторе: OmniRoute 3.8.53, вход по паролю приложения, креды провайдеров шифруются на диске, live-WS выключен.
+developer: Diego Rodrigues de Sa e Souza
+website: https://omniroute.online
+dependencies: []
+repo: https://github.com/diegosouzapw/OmniRoute
+support: https://github.com/diegosouzapw/OmniRoute/issues
+port: 20128
+gallery: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+deterministicPassword: true
+submitter: Krutikov Lab

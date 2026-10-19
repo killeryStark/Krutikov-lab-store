@@ -1,0 +1,44 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      # Формат: <app-id>_<service>_1
+      APP_HOST: krutikov-lab-omniroute_omniroute_1
+      APP_PORT: 20128
+      # У OmniRoute своя авторизация: пароль дашборда + API-ключи на /v1.
+      # Второй слой логина Umbrel закрывал бы API для внешних клиентов.
+      PROXY_AUTH_ADD: "false"
+
+  omniroute:
+    # Multi-arch (amd64 + arm64), проверен 19.10.2026:
+    # docker buildx imagetools inspect diegosouzapw/omniroute:main
+    # Сборка от 16.10.2026, package.json ветки release/v3.8.53 = 3.8.53.
+    image: diegosouzapw/omniroute:main@sha256:0ce6a2f70a9ea515293f712a3ec7b15b4b89d91e349e9181bf9028d78ffbad9b
+    restart: on-failure
+    init: true
+    stop_grace_period: 40s
+    environment:
+      - PORT=20128
+      - DATA_DIR=/app/data
+      # Секреты стабильны между рестартами: APP_SEED живёт в инсталляции Umbrel.
+      # JWT_SECRET — сессии дашборда, API_KEY_SECRET — подпись API-ключей,
+      # STORAGE_ENCRYPTION_KEY — шифрование кред провайдеров на диске.
+      - JWT_SECRET=${APP_SEED}-jwt
+      - API_KEY_SECRET=${APP_SEED}-api-keys
+      - STORAGE_ENCRYPTION_KEY=${APP_SEED}-storage
+      # Пароль дашборда = APP_PASSWORD приложения (виден в карточке приложения
+      # благодаря deterministicPassword в манифесте).
+      - INITIAL_PASSWORD=${APP_PASSWORD}
+      # Umbrel отдаёт приложение по HTTP, поэтому cookie без флага Secure.
+      - AUTH_COOKIE_SECURE=false
+      # /v1 требует API-ключ (сессия дашборда тоже подходит).
+      - REQUIRE_API_KEY=true
+      # Live-WS дашборда слушает отдельный порт 20132, app_proxy проксирует
+      # только один порт — отключаем, остальной дашборд работает.
+      - OMNIROUTE_ENABLE_LIVE_WS=false
+      # V8 heap: образ по умолчанию 1024 МБ, для длинных тел /v1/responses мало.
+      - OMNIROUTE_MEMORY_MB=2048
+    volumes:
+      # SQLite, настройки и зашифрованные подключения провайдеров.
+      - ${APP_DATA_DIR}/data:/app/data

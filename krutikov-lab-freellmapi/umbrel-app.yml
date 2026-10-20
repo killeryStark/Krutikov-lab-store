@@ -1,0 +1,38 @@
+manifestVersion: 1
+id: krutikov-lab-freellmapi
+category: ai
+name: FreeLLMAPI
+version: "0.16.5"
+tagline: Один OpenAI-совместимый эндпоинт ко всем бесплатным LLM-провайдерам
+icon: https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/master/krutikov-lab-freellmapi/icon.png
+description: >-
+  FreeLLMAPI собирает бесплатные тарифы десятков LLM-провайдеров за одним адресом /v1. Любой OpenAI-совместимый клиент (OpenCode, Cline, Cursor, Aider, Claude Code через /v1/messages) настраивается один раз, а роутер сам выбирает модель, переключается на следующего провайдера при 429/5xx и следит за лимитами каждого ключа. Поддерживаются чат, embeddings, изображения, речь и MCP.
+
+
+  Ключи провайдеров хранятся в SQLite в зашифрованном виде (AES-256-GCM). Наружу отдаётся один единый ключ freellmapi-…, который создаётся в дашборде. Своих ключей у приложения нет: чтобы роутинг заработал, добавь бесплатные ключи провайдеров на странице Keys.
+
+
+  Вход в дашборд: логин admin@krutikov.lab и пароль приложения. Пароль тот же, что показывает Umbrel в карточке приложения (кнопка с кредами) — он проброшен из APP_PASSWORD в первый аккаунт через декларативный конфиг. После первого входа пароль можно сменить в дашборде.
+
+
+  Данные (SQLite, настройки, зашифрованные ключи провайдеров) лежат в ${APP_DATA_DIR}/data и проброшены в /app/server/data. Ключ шифрования детерминированно выводится из APP_SEED установки, поэтому переживает перезапуски и обновления: не удаляй папку данных, иначе сохранённые ключи провайдеров станут нечитаемыми.
+
+
+  Образ: ghcr.io/tashfeenahmed/freellmapi:latest (linux/amd64 + linux/arm64), тег зафиксирован по digest. На Raspberry Pi 5 работает полностью, локального инференса нет — все запросы уходят к облачным провайдерам. Первый старт занимает до минуты: миграции SQLite.
+
+
+  Ограничение пакета: встроенный self-update через Watchtower не включён (ему нужен доступ к Docker-сокету), обновление — выпуском новой версии в сторе.
+releaseNotes: >-
+  Первый релиз в сторе: FreeLLMAPI 0.16.5, единый /v1 для бесплатных LLM-провайдеров, шифрование ключей на диске, готовый аккаунт администратора, данные в ${APP_DATA_DIR}/data.
+developer: Tashfeen Ahmed
+website: https://freellmapi.co
+dependencies: []
+repo: https://github.com/tashfeenahmed/freellmapi
+support: https://github.com/tashfeenahmed/freellmapi/issues
+port: 20130
+gallery: []
+path: ""
+defaultUsername: "admin@krutikov.lab"
+defaultPassword: ""
+deterministicPassword: true
+submitter: Krutikov Lab

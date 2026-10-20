@@ -1,0 +1,48 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      # Формат: <app-id>_<service>_1
+      APP_HOST: krutikov-lab-freellmapi_server_1
+      APP_PORT: 3001
+      # У FreeLLMAPI своя авторизация (аккаунт дашборда + единый API-ключ),
+      # поэтому второй слой логина Umbrel выключен: иначе он закрыл бы /v1
+      # для внешних клиентов, которым нужен только bearer-токен.
+      PROXY_AUTH_ADD: "false"
+
+  server:
+    # Multi-arch (amd64 + arm64), проверен 20.10.2026:
+    # манифест ghcr.io/tashfeenahmed/freellmapi:latest содержит linux/arm64.
+    # Тег latest зафиксирован по digest, версия образа — 0.16.5.
+    image: ghcr.io/tashfeenahmed/freellmapi:latest@sha256:b602fa2e581e63fc1543076e6175d405c677b63123b1fbfe753cf86614a01bea
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    # ENCRYPTION_KEY должен быть ровно 64 hex-символа. APP_SEED у Umbrel —
+    # тоже hex, но его формат не гарантирован, поэтому ключ выводится из него
+    # через sha256: детерминированно, стабильно между перезапусками и
+    # обновлениями, и ровно нужной длины.
+    command:
+      - sh
+      - -c
+      - 'if [ -z "$$APP_SEED" ]; then echo "APP_SEED is missing" >&2; exit 1; fi; export ENCRYPTION_KEY=$(printf "%s" "$$APP_SEED-freellmapi" | sha256sum | cut -d" " -f1); exec node server/dist/index.js'
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      # Umbrel проксирует приложение по HTTP и ходит в контейнер по IPv4.
+      - HOST=0.0.0.0
+      - APP_SEED=${APP_SEED}
+      # Первый аккаунт создаётся до старта HTTP-сервера, поэтому окно
+      # первичной настройки с кодом из логов закрыто с первого запуска.
+      # Логин и пароль — те, что Umbrel показывает в карточке приложения.
+      - 'FREEAPI_CONFIG_JSON={"admin":{"email":"admin@krutikov.lab","password":"${APP_PASSWORD}"},"routing":{"strategy":"balanced"}}'
+      # Один reverse proxy (app_proxy Umbrel) — доверяем X-Forwarded-*,
+      # чтобы аналитика и rate limit видели реальный IP клиента.
+      - TRUST_PROXY=1
+      # Umbrel отдаёт приложение по HTTP, без TLS: не форсируем
+      # upgrade-insecure-requests, иначе дашборд не отрисуется.
+      - CSP_UPGRADE_INSECURE_REQUESTS=false
+    volumes:
+      # SQLite, настройки и зашифрованные ключи провайдеров.
+      - ${APP_DATA_DIR}/data:/app/server/data

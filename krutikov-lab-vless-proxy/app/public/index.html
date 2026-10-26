@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VLESS Proxy</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #080b12;
+    --panel: #10151f;
+    --panel-2: #151b28;
+    --line: #222b3d;
+    --text: #e6ecf7;
+    --muted: #8792a8;
+    --accent: #5eead4;
+    --accent-2: #818cf8;
+    --ok: #34d399;
+    --err: #f87171;
+    --warn: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(129, 140, 248, 0.18), transparent 60%),
+      radial-gradient(700px 400px at 0% 0%, rgba(94, 234, 212, 0.12), transparent 55%),
+      var(--bg);
+    color: var(--text);
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 28px 20px 56px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .mark {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: linear-gradient(145deg, #5eead4, #818cf8);
+    display: grid; place-items: center; color: #071018; font-weight: 800; font-size: 20px;
+    box-shadow: 0 8px 26px rgba(94, 234, 212, 0.22);
+  }
+  h1 { font-size: 19px; margin: 0; letter-spacing: 0.2px; }
+  .sub { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid var(--line); background: var(--panel);
+    padding: 8px 13px; border-radius: 999px; font-size: 13px; color: var(--muted); white-space: nowrap;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #64748b; }
+  .pill.on { color: #d1fae5; border-color: rgba(52, 211, 153, 0.35); }
+  .pill.on .dot { background: var(--ok); box-shadow: 0 0 12px var(--ok); }
+  .pill.err { color: #fecaca; border-color: rgba(248, 113, 113, 0.35); }
+  .pill.err .dot { background: var(--err); box-shadow: 0 0 12px var(--err); }
+  .grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; align-items: start; }
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent), var(--panel);
+    border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+  }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 0 0 16px; font-weight: 600; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  textarea {
+    width: 100%; min-height: 108px; resize: vertical;
+    background: #0a0e17; color: var(--text);
+    border: 1px solid var(--line); border-radius: 11px; padding: 12px 13px;
+    font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+    outline: none;
+  }
+  textarea:focus { border-color: rgba(94, 234, 212, 0.55); box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.1); }
+  .row { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 13px; }
+  button {
+    appearance: none; border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+    border-radius: 10px; padding: 10px 15px; font-size: 13.5px; cursor: pointer; font-weight: 500;
+    transition: 0.15s ease;
+  }
+  button:hover { border-color: #33415c; transform: translateY(-1px); }
+  button:disabled { opacity: 0.5; cursor: default; transform: none; }
+  button.primary {
+    background: linear-gradient(135deg, #5eead4, #818cf8);
+    color: #071018; border: 0; font-weight: 700;
+    box-shadow: 0 8px 22px rgba(94, 234, 212, 0.18);
+  }
+  button.ghost { background: transparent; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; line-height: 1.5; }
+  .summary { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 16px; display: none; }
+  .summary.show { display: block; }
+  .kv { display: grid; grid-template-columns: 96px 1fr; gap: 7px 12px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; overflow-wrap: anywhere; }
+  .proxy-card { border-color: rgba(94, 234, 212, 0.34); box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.06), 0 20px 50px -30px rgba(94, 234, 212, 0.4); }
+  .endpoint { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .endpoint .proto { width: 58px; flex: none; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+  .endpoint code {
+    flex: 1; min-width: 0; background: #0a0e17; border: 1px solid var(--line); border-radius: 9px;
+    padding: 10px 11px; font: 12.5px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .copy { padding: 8px 11px; font-size: 12px; }
+  .note {
+    margin-top: 14px; font-size: 12px; line-height: 1.55; color: var(--muted);
+    border-left: 2px solid rgba(94, 234, 212, 0.5); padding-left: 11px;
+  }
+  .stat { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 7px 0; border-bottom: 1px dashed rgba(34, 43, 61, 0.8); }
+  .stat:last-child { border-bottom: 0; }
+  .stat span:first-child { color: var(--muted); }
+  .stat span:last-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  .errbox { display: none; margin-top: 15px; border: 1px solid rgba(248,113,113,0.35); background: rgba(248,113,113,0.08); color: #fecaca; border-radius: 10px; padding: 11px 13px; font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; }
+  .errbox.show { display: block; }
+  .logs { grid-column: 1 / -1; }
+  pre.log {
+    margin: 0; background: #070a10; border: 1px solid var(--line); border-radius: 11px;
+    padding: 13px; max-height: 270px; overflow: auto;
+    font: 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #9fb0c9; white-space: pre-wrap;
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px);
+    background: #111827; border: 1px solid #334155; color: var(--text);
+    padding: 10px 16px; border-radius: 10px; font-size: 13px; opacity: 0; pointer-events: none;
+    transition: 0.2s ease; box-shadow: 0 18px 40px rgba(0,0,0,0.45); z-index: 10;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.bad { border-color: rgba(248,113,113,0.5); color: #fecaca; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark">V</div>
+      <div>
+        <h1>VLESS Proxy</h1>
+        <div class="sub">Вставь ссылку — прокси поднимется сам</div>
+      </div>
+    </div>
+    <div class="pill" id="pill"><span class="dot"></span><span id="pillText">Проверка…</span></div>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Ссылка подключения</h2>
+      <label for="link">vless:// или base64-подписка</label>
+      <textarea id="link" spellcheck="false" placeholder="vless://uuid@server:443?security=reality&sni=example.com&fp=chrome&pbk=...&type=tcp#name"></textarea>
+      <div class="row">
+        <button class="primary" id="connectBtn">Подключить</button>
+        <button class="ghost" id="restartBtn">Перезапустить</button>
+        <button class="ghost" id="stopBtn">Остановить</button>
+      </div>
+      <div class="hint">Поддерживается VLESS с TLS/Reality, транспорты tcp, ws, grpc, http и httpupgrade. Ключи не покидают этот контейнер.</div>
+      <div class="summary" id="summary">
+        <dl class="kv">
+          <dt>Сервер</dt><dd id="sServer">—</dd>
+          <dt>Безопасность</dt><dd id="sSecurity">—</dd>
+          <dt>Транспорт</dt><dd id="sNetwork">—</dd>
+          <dt>SNI</dt><dd id="sSni">—</dd>
+          <dt>Flow</dt><dd id="sFlow">—</dd>
+          <dt>UUID</dt><dd id="sUuid">—</dd>
+        </dl>
+      </div>
+      <div class="errbox" id="errorBox"></div>
+    </section>
+
+    <section class="card proxy-card">
+      <h2>Настройки прокси</h2>
+      <div class="endpoint">
+        <div class="proto">SOCKS5</div>
+        <code id="socksUrl">—</code>
+        <button class="copy" data-copy="socksUrl">Копировать</button>
+      </div>
+      <div class="endpoint">
+        <div class="proto">HTTP</div>
+        <code id="httpUrl">—</code>
+        <button class="copy" data-copy="httpUrl">Копировать</button>
+      </div>
+      <dl class="kv" style="margin-top:16px">
+        <dt>Хост</dt><dd id="pHost">—</dd>
+        <dt>Порт</dt><dd id="pPort">—</dd>
+        <dt>Логин</dt><dd>не требуется</dd>
+      </dl>
+      <div class="note">Один порт принимает и SOCKS5, и HTTP. Работает для всей локальной сети без авторизации — не открывай его в интернет.</div>
+      <div class="row">
+        <button class="ghost" id="checkBtn">Проверить сервер</button>
+        <button class="ghost" id="egressBtn">Проверить выход</button>
+      </div>
+      <div style="margin-top:14px">
+        <div class="stat"><span>Статус</span><span id="stState">—</span></div>
+        <div class="stat"><span>Аптайм</span><span id="stUptime">—</span></div>
+        <div class="stat"><span>sing-box</span><span id="stVersion">—</span></div>
+        <div class="stat"><span>Внешний IP</span><span id="stIp">—</span></div>
+      </div>
+    </section>
+
+    <section class="card logs">
+      <h2>Журнал</h2>
+      <pre class="log" id="log">—</pre>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let lastStatus = null;
+let toastTimer = null;
+
+function toast(text, bad) {
+  const el = $('toast');
+  el.textContent = text;
+  el.classList.toggle('bad', !!bad);
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy') ? resolve() : reject(new Error('copy failed'));
+    } catch (err) {
+      reject(err);
+    } finally {
+      ta.remove();
+    }
+  });
+}
+
+function fmtUptime(sec) {
+  if (!sec) return '—';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h) return h + ' ч ' + m + ' мин';
+  if (m) return m + ' мин';
+  return sec + ' с';
+}
+
+function proxyHost() {
+  return location.hostname || 'localhost';
+}
+
+function render(status) {
+  lastStatus = status;
+  const host = proxyHost();
+  const port = status.proxy.publicPort;
+  const socks = 'socks5://' + host + ':' + port;
+  const httpUrl = 'http://' + host + ':' + port;
+  $('socksUrl').textContent = socks;
+  $('httpUrl').textContent = httpUrl;
+  $('pHost').textContent = host;
+  $('pPort').textContent = String(port);
+
+  const pill = $('pill');
+  pill.classList.remove('on', 'err');
+  if (status.running) {
+    pill.classList.add('on');
+    $('pillText').textContent = 'Подключено';
+  } else if (status.error) {
+    pill.classList.add('err');
+    $('pillText').textContent = 'Ошибка';
+  } else {
+    $('pillText').textContent = status.configured ? 'Остановлено' : 'Не настроено';
+  }
+
+  $('stState').textContent = status.running ? 'работает' : 'остановлен';
+  $('stUptime').textContent = fmtUptime(status.uptimeSec);
+  $('stVersion').textContent = status.version || '—';
+
+  const box = $('errorBox');
+  if (status.error) {
+    box.textContent = status.error;
+    box.classList.add('show');
+  } else {
+    box.classList.remove('show');
+  }
+
+  if (status.parsed) {
+    $('summary').classList.add('show');
+    $('sServer').textContent = status.parsed.server + ':' + status.parsed.port;
+    $('sSecurity').textContent = status.parsed.security;
+    $('sNetwork').textContent = status.parsed.network;
+    $('sSni').textContent = status.parsed.sni;
+    $('sFlow').textContent = status.parsed.flow || '—';
+    $('sUuid').textContent = status.parsed.uuidMasked;
+  } else {
+    $('summary').classList.remove('show');
+  }
+
+  if (document.activeElement !== $('link') && status.link) {
+    $('link').value = status.link;
+  }
+
+  const logs = (status.logs || []).map((entry) => {
+    const d = new Date(entry.t);
+    const time = d.toLocaleTimeString('ru-RU', { hour12: false });
+    return '[' + time + '] ' + entry.line;
+  });
+  $('log').textContent = logs.length ? logs.join('\n') : '—';
+}
+
+async function request(url, options) {
+  const res = await fetch(url, options);
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {}
+  if (!res.ok) {
+    throw new Error((data && data.error) || ('HTTP ' + res.status));
+  }
+  return data;
+}
+
+async function refresh() {
+  try {
+    const status = await request('/api/status');
+    render(status);
+  } catch (err) {
+    toast('Нет связи с сервером', true);
+  }
+}
+
+$('connectBtn').addEventListener('click', async () => {
+  const link = $('link').value.trim();
+  if (!link) return toast('Вставь ссылку подключения', true);
+  const btn = $('connectBtn');
+  btn.disabled = true;
+  btn.textContent = 'Подключаю…';
+  try {
+    const data = await request('/api/link', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ link }),
+    });
+    render(data.status);
+    toast(data.running ? 'Прокси запущен' : 'Не удалось запустить', !data.running);
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Подключить';
+  }
+});
+
+$('restartBtn').addEventListener('click', async () => {
+  try {
+    const data = await request('/api/restart', { method: 'POST' });
+    render(data.status);
+    toast(data.ok ? 'Перезапущено' : 'Не удалось перезапустить', !data.ok);
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
+
+$('stopBtn').addEventListener('click', async () => {
+  try {
+    const data = await request('/api/stop', { method: 'POST' });
+    render(data.status);
+    toast('Прокси остановлен');
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
+
+$('checkBtn').addEventListener('click', async () => {
+  const btn = $('checkBtn');
+  btn.disabled = true;
+  try {
+    const data = await request('/api/check');
+    toast(data.ok ? 'Сервер доступен · ' + data.ms + ' мс' : 'Сервер недоступен: ' + (data.error || ''), !data.ok);
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('egressBtn').addEventListener('click', async () => {
+  const btn = $('egressBtn');
+  btn.disabled = true;
+  $('stIp').textContent = 'проверка…';
+  try {
+    const data = await request('/api/egress');
+    if (data.ok && data.ip) {
+      $('stIp').textContent = data.ip;
+      toast('Выход через прокси работает · ' + data.ms + ' мс');
+    } else {
+      $('stIp').textContent = 'нет';
+      toast('Прокси не отвечает: ' + (data.error || 'ошибка'), true);
+    }
+  } catch (err) {
+    $('stIp').textContent = 'нет';
+    toast(err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.querySelectorAll('.copy').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const text = $(btn.dataset.copy).textContent;
+    try {
+      await copyText(text);
+      toast('Скопировано');
+    } catch {
+      toast('Не удалось скопировать', true);
+    }
+  });
+});
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

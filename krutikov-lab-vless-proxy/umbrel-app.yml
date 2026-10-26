@@ -1,0 +1,37 @@
+manifestVersion: 1
+id: krutikov-lab-vless-proxy
+category: networking
+name: VLESS Proxy
+version: "1.0.0"
+tagline: SOCKS5 и HTTP-прокси для всей локальной сети из одной VLESS-ссылки
+icon: https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/master/krutikov-lab-vless-proxy/icon.png
+description: >-
+  Превращает VLESS-ссылку в локальный прокси. Вставь ссылку vless:// (или base64-подписку) в веб-интерфейс, нажми «Применить» — приложение проверит конфигурацию через sing-box и поднимет mixed-инбаунд: SOCKS5 и HTTP на одном порту 20180, доступном всем устройствам в локальной сети.
+
+
+  Адрес для клиентов: <IP-адрес umbrel>:20180 — годится и как SOCKS5, и как HTTP-прокси, без логина и пароля. Веб-интерфейс открывается на порту 20131: показывает состояние, публичные адреса прокси, результат TCP-проверки сервера, реальный внешний IP через прокси и живой лог sing-box.
+
+
+  Поддержаны VLESS с TLS и REALITY (включая utls-отпечатки) и транспорты tcp, ws, grpc, h2/http, httpupgrade. Не поддержаны xhttp, kcp, quic и другие экзотические транспорты — приложение честно откажется применять такую ссылку и покажет ошибку.
+
+
+  Ссылка и сгенерированный конфиг sing-box лежат в ${APP_DATA_DIR}/data и переживают перезапуск: после старта контейнера прокси поднимается автоматически. Наружу ничего не публикуется, кроме порта 20180 в локальной сети.
+
+
+  Важно: авторизации нет по замыслу. Порт 20180 не должен быть доступен из интернета — используй приложение только в доверенной локальной сети.
+
+
+  Устройство: один контейнер на официальном node:22-alpine (linux/amd64 + linux/arm64), без npm-зависимостей. Код панели лежит в папке приложения и монтируется только на чтение; бинарник sing-box 1.14.4 скачивается с официального релиза GitHub при первом запуске и кэшируется в ${APP_DATA_DIR}/data/bin, поэтому дальше контейнер стартует без обращения к сети.
+releaseNotes: >-
+  Первый релиз: вставка VLESS-ссылки или подписки, mixed SOCKS5/HTTP на порту 20180, TLS/REALITY и транспорты tcp/ws/grpc/h2/httpupgrade, проверка конфига до запуска, внешний IP через прокси, логи и автозапуск после перезагрузки.
+developer: Krutikov Lab
+website: https://krutikov-lab.ru
+dependencies: []
+repo: https://github.com/killeryStark/Krutikov-lab-store
+support: https://github.com/killeryStark/Krutikov-lab-store/issues
+port: 20131
+gallery: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+submitter: Krutikov Lab

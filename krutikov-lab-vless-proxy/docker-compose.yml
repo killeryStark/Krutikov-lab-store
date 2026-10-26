@@ -1,0 +1,46 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      # Формат: <app-id>_<service>_1
+      APP_HOST: krutikov-lab-vless-proxy_web_1
+      APP_PORT: 3001
+      # Авторизации нет по замыслу: панель и прокси живут в локальной сети.
+      # Второй слой логина Umbrel выключен, иначе он закрыл бы панель.
+      PROXY_AUTH_ADD: "false"
+
+  web:
+    # Официальный multi-arch образ Node.js (digest зафиксирован). Исходники
+    # панели лежат в папке app/ рядом с этим compose и монтируются только
+    # на чтение. sing-box скачивается при первом старте и кэшируется в /data.
+    image: node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 15s
+    command:
+      - sh
+      - /app/start.sh
+    # Прокси публикуется прямо на хост: mixed-инбаунд sing-box слушает
+    # 1080 в контейнере, снаружи это 20180. Панель (3001) наружу не торчит:
+    # к ней ходит только app_proxy Umbrel на 20131.
+    ports:
+      - "20180:1080"
+    environment:
+      - WEB_PORT=3001
+      - PROXY_PORT=1080
+      # Порт, который панель показывает клиентам в локальной сети.
+      - PUBLIC_PROXY_PORT=20180
+      - DATA_DIR=/data
+      - SINGBOX_VERSION=1.14.4
+    volumes:
+      # state.json со ссылкой, sing-box.json и скачанный бинарник sing-box.
+      - ${APP_DATA_DIR}/data:/data
+      # Код панели из папки приложения: обновляется вместе со стором.
+      - ${APP_DATA_DIR}/app:/app:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

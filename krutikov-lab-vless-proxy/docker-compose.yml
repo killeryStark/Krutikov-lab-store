@@ -13,7 +13,7 @@ services:
   web:
     # Официальный multi-arch образ Node.js (digest зафиксирован). Исходники
     # панели лежат в папке app/ рядом с этим compose и монтируются только
-    # на чтение. sing-box скачивается при первом старте и кэшируется в /data.
+    # на чтение. Xray-core скачивается при первом старте и кэшируется в /data.
     image: node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
     restart: unless-stopped
     init: true
@@ -21,9 +21,10 @@ services:
     command:
       - sh
       - /app/start.sh
-    # Прокси публикуется прямо на хост: mixed-инбаунд sing-box слушает
-    # 1080 в контейнере, снаружи это 20180. Панель (3001) наружу не торчит:
-    # к ней ходит только app_proxy Umbrel на 20131.
+    # Прокси публикуется прямо на хост: Node-мультиплексор слушает 1080
+    # и по первому байту направляет в SOCKS5 или HTTP-инбаунд Xray.
+    # Снаружи это 20180. Панель (3001) наружу не торчит: к ней ходит
+    # только app_proxy Umbrel на 20131.
     ports:
       - "20180:1080"
     environment:
@@ -32,9 +33,9 @@ services:
       # Порт, который панель показывает клиентам в локальной сети.
       - PUBLIC_PROXY_PORT=20180
       - DATA_DIR=/data
-      - SINGBOX_VERSION=1.14.4
+      - XRAY_VERSION=26.10.21
     volumes:
-      # state.json со ссылкой, sing-box.json и скачанный бинарник sing-box.
+      # state.json со ссылкой, xray.json и скачанный бинарник xray.
       - ${APP_DATA_DIR}/data:/data
       # Код панели из папки приложения: обновляется вместе со стором.
       - ${APP_DATA_DIR}/app:/app:ro

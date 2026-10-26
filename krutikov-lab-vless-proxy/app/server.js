@@ -1,4 +1,5 @@
 const http = require('http');
+const tls = require('tls');
 const fs = require('fs');
 const path = require('path');
 const net = require('net');
@@ -8,9 +9,11 @@ const DATA_DIR = process.env.DATA_DIR || '/data';
 const WEB_PORT = Number(process.env.WEB_PORT || 3001);
 const PROXY_PORT = Number(process.env.PROXY_PORT || 1080);
 const PUBLIC_PROXY_PORT = Number(process.env.PUBLIC_PROXY_PORT || 20180);
+const SOCKS_PORT = Number(process.env.SOCKS_PORT || 1081);
+const HTTP_PORT = Number(process.env.HTTP_PORT || 1082);
 
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
-const SB_CONFIG = path.join(DATA_DIR, 'sing-box.json');
+const XRAY_CONFIG = path.join(DATA_DIR, 'xray.json');
 const INDEX_FILE = path.join(__dirname, 'public', 'index.html');
 const MAX_LOG = 200;
 
@@ -19,7 +22,7 @@ let child = null;
 let childStartedAt = 0;
 let lastError = '';
 let logs = [];
-let singboxVersion = '';
+let xrayVersion = '';
 let switching = Promise.resolve();
 
 function addLog(text) {
@@ -94,6 +97,9 @@ function parseVless(input) {
   const fp = q.get('fp') || '';
   const pbk = normalizePublicKey(q.get('pbk') || '');
   const sid = q.get('sid') || '';
+  const pqv = q.get('pqv') || '';
+  const spx = q.get('spx') || '';
+  const encryption = q.get('encryption') || 'none';
   const alpn = (q.get('alpn') || '').split(',').map((s) => s.trim()).filter(Boolean);
   const allowInsecure = ['1', 'true', 'yes'].includes((q.get('allowInsecure') || q.get('insecure') || '').toLowerCase());
   const name = decodeURIComponent((u.hash || '').replace(/^#/, ''));
@@ -113,6 +119,9 @@ function parseVless(input) {
     fp,
     pbk,
     sid,
+    pqv,
+    spx,
+    encryption,
     alpn,
     allowInsecure,
     name,
@@ -122,82 +131,98 @@ function parseVless(input) {
 }
 
 function buildOutbound(p) {
-  const outbound = {
-    type: 'vless',
-    tag: 'proxy',
-    server: p.server,
-    server_port: p.port,
-    uuid: p.uuid,
-  };
-  if (p.flow) outbound.flow = p.flow;
-  if (p.security === 'tls' || p.security === 'reality') {
-    outbound.tls = {
-      enabled: true,
-      server_name: p.sni,
-      insecure: p.allowInsecure,
-    };
-    if (p.alpn.length) outbound.tls.alpn = p.alpn;
-    outbound.tls.utls = {
-      enabled: true,
+  const user = { id: p.uuid, encryption: p.encryption || 'none' };
+  if (p.flow) user.flow = p.flow;
+  const stream = { network: p.network === 'h2' ? 'http' : p.network || 'tcp' };
+  if (p.security === 'tls') {
+    stream.security = 'tls';
+    stream.tlsSettings = {
+      serverName: p.sni,
       fingerprint: p.fp || 'chrome',
+      allowInsecure: !!p.allowInsecure,
     };
-    if (p.security === 'reality') {
-      if (!p.pbk) throw new Error('Для reality нужен параметр pbk');
-      outbound.tls.reality = {
-        enabled: true,
-        public_key: p.pbk,
-        short_id: p.sid,
-      };
-    }
+    if (p.alpn.length) stream.tlsSettings.alpn = p.alpn;
+  } else if (p.security === 'reality') {
+    if (!p.pbk) throw new Error('Для reality нужен параметр pbk');
+    stream.security = 'reality';
+    stream.realitySettings = {
+      serverName: p.sni,
+      fingerprint: p.fp || 'chrome',
+      publicKey: p.pbk,
+      shortId: p.sid,
+      spiderX: p.spx || '/',
+    };
+    if (p.pqv) stream.realitySettings.mldsa65Verify = p.pqv;
+  } else if (p.security !== 'none' && p.security !== '') {
+    throw new Error('Тип безопасности «' + p.security + '» не поддерживается');
   }
   switch (p.network) {
     case 'tcp':
+    case 'raw':
     case '':
       break;
     case 'ws':
-      outbound.transport = { type: 'ws', path: p.path };
-      if (p.host) outbound.transport.headers = { Host: p.host };
+      stream.wsSettings = { path: p.path };
+      if (p.host) stream.wsSettings.headers = { Host: p.host };
       break;
     case 'grpc':
-      outbound.transport = { type: 'grpc', service_name: p.serviceName };
+      stream.grpcSettings = { serviceName: p.serviceName };
+      if (p.grpcMode === 'multi') stream.grpcSettings.multiMode = true;
       break;
     case 'http':
     case 'h2':
-      outbound.transport = { type: 'http', host: [p.host || p.server], path: p.path };
+      stream.httpSettings = { host: [p.host || p.sni || p.server], path: p.path };
       break;
     case 'httpupgrade':
-      outbound.transport = { type: 'httpupgrade', host: p.host || p.server, path: p.path };
+      stream.httpupgradeSettings = { host: p.host || p.sni || p.server, path: p.path };
       break;
     default:
       throw new Error('Транспорт «' + p.network + '» не поддерживается');
   }
-  return outbound;
-}
-
-function buildConfig(parsed) {
   return {
-    log: { level: 'info', timestamp: true },
-    inbounds: [
-      {
-        type: 'mixed',
-        tag: 'mixed-in',
-        listen: '0.0.0.0',
-        listen_port: PROXY_PORT,
-      },
-    ],
-    outbounds: [
-      parsed.outbound,
-      { type: 'direct', tag: 'direct' },
-    ],
-    route: {
-      rules: [
-        { ip_is_private: true, outbound: 'direct' },
-      ],
-      final: 'proxy',
-    },
+    tag: 'proxy',
+    protocol: 'vless',
+    settings: { vnext: [{ address: p.server, port: p.port, users: [user] }] },
+    streamSettings: stream,
   };
 }
 
+function buildConfig(parsed) {
+  const privateRanges = [
+    '10.0.0.0/8',
+    '172.16.0.0/12',
+    '192.168.0.0/16',
+    '127.0.0.0/8',
+    '169.254.0.0/16',
+    '::1/128',
+    'fc00::/7',
+    'fe80::/10',
+  ];
+  return {
+    log: { loglevel: 'info' },
+    inbounds: [
+      {
+        tag: 'socks-in',
+        listen: '127.0.0.1',
+        port: SOCKS_PORT,
+        protocol: 'socks',
+        settings: { auth: 'noauth', udp: false },
+      },
+      {
+        tag: 'http-in',
+        listen: '127.0.0.1',
+        port: HTTP_PORT,
+        protocol: 'http',
+        settings: {},
+      },
+    ],
+    outbounds: [parsed.outbound, { tag: 'direct', protocol: 'freedom' }],
+    routing: {
+      domainStrategy: 'AsIs',
+      rules: [{ type: 'field', ip: privateRanges, outboundTag: 'direct' }],
+    },
+  };
+}
 function summary(parsed) {
   if (!parsed) return null;
   return {
@@ -224,7 +249,7 @@ function safeParse(link) {
 
 function checkConfig() {
   return new Promise((resolve) => {
-    execFile('sing-box', ['check', '-c', SB_CONFIG], { timeout: 15000 }, (err, stdout, stderr) => {
+    execFile('xray', ['run', '-test', '-config', XRAY_CONFIG], { timeout: 15000 }, (err, stdout, stderr) => {
       if (err) {
         resolve({ ok: false, error: (stderr || stdout || err.message).trim() });
       } else {
@@ -271,15 +296,15 @@ async function startChild() {
     return;
   }
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(SB_CONFIG, JSON.stringify(buildConfig(parsed), null, 2));
+  fs.writeFileSync(XRAY_CONFIG, JSON.stringify(buildConfig(parsed), null, 2));
   const check = await checkConfig();
   if (!check.ok) {
-    lastError = check.error || 'sing-box отверг конфигурацию';
+    lastError = check.error || 'Xray отверг конфигурацию';
     addLog('[config] ' + lastError);
     return;
   }
   lastError = '';
-  const proc = spawn('sing-box', ['run', '-c', SB_CONFIG], {
+  const proc = spawn('xray', ['run', '-config', XRAY_CONFIG], {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   child = proc;
@@ -294,9 +319,9 @@ async function startChild() {
     if (child === proc) {
       child = null;
       if (code !== 0 && code !== null) {
-        lastError = 'sing-box завершился с кодом ' + code;
+        lastError = 'Xray завершился с кодом ' + code;
       } else if (signal) {
-        lastError = 'sing-box остановлен (' + signal + ')';
+        lastError = 'Xray остановлен (' + signal + ')';
       }
       addLog('[exit] code=' + code + ' signal=' + signal);
     }
@@ -334,47 +359,89 @@ function tcpCheck(parsed) {
 function egressCheck() {
   return new Promise((resolve) => {
     const started = Date.now();
-    const socket = net.connect(PROXY_PORT, '127.0.0.1');
+    const host = 'api.ipify.org';
     let settled = false;
+    let socket = null;
+    let secure = null;
     const finish = (payload) => {
       if (settled) return;
       settled = true;
-      socket.destroy();
+      if (secure) secure.destroy();
+      if (socket) socket.destroy();
       resolve(Object.assign({ ms: Date.now() - started }, payload));
     };
+    socket = net.connect(PROXY_PORT, '127.0.0.1');
     socket.setTimeout(15000);
     socket.once('timeout', () => finish({ ok: false, error: 'Таймаут через прокси' }));
     socket.once('error', (err) => finish({ ok: false, error: err.code || err.message }));
     socket.once('connect', () => {
-      const req = http.request({
-        host: 'api.ipify.org',
-        port: 80,
-        method: 'GET',
-        path: 'http://api.ipify.org/',
-        headers: { Host: 'api.ipify.org', 'User-Agent': 'vless-proxy' },
-        createConnection: () => socket,
-      });
-      req.setTimeout(15000, () => {
-        req.destroy(new Error('timeout'));
-      });
-      req.on('response', (res) => {
-        let body = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-          body += chunk;
-          if (body.length > 200) req.destroy();
+      socket.write('CONNECT ' + host + ':443 HTTP/1.1\r\nHost: ' + host + ':443\r\nProxy-Connection: keep-alive\r\n\r\n');
+      let head = Buffer.alloc(0);
+      const onData = (chunk) => {
+        head = Buffer.concat([head, chunk]);
+        const idx = head.indexOf('\r\n\r\n');
+        if (idx < 0) {
+          if (head.length > 8192) finish({ ok: false, error: 'Некорректный ответ прокси' });
+          return;
+        }
+        socket.removeListener('data', onData);
+        const statusLine = head.slice(0, idx).toString('utf8').split('\r\n')[0] || '';
+        const code = Number((statusLine.match(/^HTTP\/1\.[01]\s+(\d{3})/) || [])[1]);
+        if (code !== 200) {
+          finish({ ok: false, status: code || null, error: 'Прокси ответил ' + (code || '?') });
+          return;
+        }
+        secure = tls.connect({ socket, servername: host }, () => {
+          secure.write('GET / HTTP/1.1\r\nHost: ' + host + '\r\nUser-Agent: vless-proxy\r\nConnection: close\r\n\r\n');
         });
-        res.on('end', () => {
-          const ip = body.trim();
-          finish({ ok: res.statusCode === 200 && !!ip, status: res.statusCode, ip: ip.slice(0, 64) || null });
+        secure.setTimeout(15000);
+        secure.once('timeout', () => finish({ ok: false, error: 'Таймаут TLS' }));
+        secure.once('error', (err) => finish({ ok: false, error: err.code || err.message }));
+        let buf = '';
+        secure.on('data', (part) => {
+          buf += part.toString('utf8');
+          if (buf.length > 8192) secure.destroy();
         });
-      });
-      req.on('error', (err) => finish({ ok: false, error: err.code || err.message }));
-      req.end();
+        secure.on('end', () => {
+          const parts = buf.split('\r\n\r\n');
+          const status = Number(((parts[0] || '').match(/^HTTP\/1\.[01]\s+(\d{3})/) || [])[1]);
+          const text = (parts.slice(1).join('\r\n\r\n') || '').trim();
+          const ip = text.split(/\s+/).find((word) => /^[0-9a-fA-F:.]{3,64}$/.test(word)) || '';
+          finish({ ok: status === 200 && !!ip, status: status || null, ip: ip || null });
+        });
+      };
+      socket.on('data', onData);
     });
   });
 }
 
+let muxServer = null;
+
+function startMux() {
+  if (muxServer) return;
+  muxServer = net.createServer((client) => {
+    const timer = setTimeout(() => client.destroy(), 10000);
+    client.once('data', (chunk) => {
+      clearTimeout(timer);
+      client.pause();
+      const target = chunk[0] === 0x05 || chunk[0] === 0x04 ? SOCKS_PORT : HTTP_PORT;
+      const upstream = net.connect(target, '127.0.0.1');
+      upstream.once('connect', () => {
+        upstream.write(chunk);
+        client.pipe(upstream);
+        upstream.pipe(client);
+        client.resume();
+      });
+      upstream.once('error', () => client.destroy());
+      client.once('error', () => upstream.destroy());
+    });
+    client.once('error', () => {});
+  });
+  muxServer.on('error', (err) => addLog('[mux] ' + (err.code || err.message)));
+  muxServer.listen(PROXY_PORT, '0.0.0.0', () => {
+    addLog('[mux] 0.0.0.0:' + PROXY_PORT + ' → socks ' + SOCKS_PORT + ' / http ' + HTTP_PORT);
+  });
+}
 function statusPayload() {
   const parsed = safeParse(state.link);
   return {
@@ -385,7 +452,7 @@ function statusPayload() {
     pid: child ? child.pid : null,
     uptimeSec: child ? Math.round((Date.now() - childStartedAt) / 1000) : 0,
     error: lastError || null,
-    version: singboxVersion,
+    version: xrayVersion,
     proxy: {
       internalPort: PROXY_PORT,
       publicPort: PUBLIC_PROXY_PORT,
@@ -488,10 +555,10 @@ const server = http.createServer(async (req, res) => {
 });
 
 function detectVersion() {
-  execFile('sing-box', ['version'], { timeout: 5000 }, (err, stdout, stderr) => {
+  execFile('xray', ['version'], { timeout: 5000 }, (err, stdout, stderr) => {
     const text = (stdout || stderr || '').trim();
     if (!err && text) {
-      singboxVersion = (text.split('\n')[0] || '').replace(/^sing-box version\s*/i, '').trim();
+      xrayVersion = ((text.match(/Xray\s+(\S+)/i) || [])[1] || '').trim();
     }
   });
 }
@@ -499,6 +566,7 @@ function detectVersion() {
 async function boot() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   detectVersion();
+  startMux();
   loadState();
   if (state.link) {
     await restart();
@@ -511,6 +579,7 @@ async function boot() {
 for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, async () => {
     await stopChild();
+    if (muxServer) muxServer.close();
     process.exit(0);
   });
 }

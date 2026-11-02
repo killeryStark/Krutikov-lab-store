@@ -2,7 +2,7 @@ manifestVersion: 1
 id: krutikov-lab-freellmapi
 category: ai
 name: FreeLLMAPI
-version: "0.16.5"
+version: "0.16.16"
 tagline: Один OpenAI-совместимый эндпоинт ко всем бесплатным LLM-провайдерам
 icon: https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/master/krutikov-lab-freellmapi/icon.png
 description: >-
@@ -23,7 +23,8 @@ description: >-
 
   Ограничение пакета: встроенный self-update через Watchtower не включён (ему нужен доступ к Docker-сокету), обновление — выпуском новой версии в сторе.
 releaseNotes: >-
-  Первый релиз в сторе: FreeLLMAPI 0.16.5, единый /v1 для бесплатных LLM-провайдеров, шифрование ключей на диске, готовый аккаунт администратора, данные в ${APP_DATA_DIR}/data.
+  Обновление до FreeLLMAPI 0.16.16. Новые провайдеры и адаптеры: nabh.cloud, JamAI Base, KiosAPI, Plugsky, BlockRun, keyless HAL-X и AI SENSE, /v1/decisions с типизированным извлечением полей. Расширен аудио- и видео-каталог: CogVideoX Flash через NovAI, TTS и транскрипция у Free.ai, OVH, Mistral и Google. Каталог моделей приходит подписанным обновлением, ключи и база сохраняются.
+
 developer: Tashfeen Ahmed
 website: https://freellmapi.co
 dependencies: []

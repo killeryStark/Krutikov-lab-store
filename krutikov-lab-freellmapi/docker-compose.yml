@@ -12,10 +12,10 @@ services:
       PROXY_AUTH_ADD: "false"
 
   server:
-    # Multi-arch (amd64 + arm64), проверен 20.10.2026:
+    # Multi-arch (amd64 + arm64), проверен 02.11.2026:
     # манифест ghcr.io/tashfeenahmed/freellmapi:latest содержит linux/arm64.
-    # Тег latest зафиксирован по digest, версия образа — 0.16.5.
-    image: ghcr.io/tashfeenahmed/freellmapi:latest@sha256:b602fa2e581e63fc1543076e6175d405c677b63123b1fbfe753cf86614a01bea
+    # Тег latest зафиксирован по digest, версия образа — 0.16.16.
+    image: ghcr.io/tashfeenahmed/freellmapi:latest@sha256:3b744d6714737f2d0c8fe90cdd8517966f22acf615d44cc222c792d40ef9b0a9
     restart: unless-stopped
     init: true
     stop_grace_period: 30s

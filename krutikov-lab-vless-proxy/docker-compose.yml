@@ -12,9 +12,10 @@ services:
 
   web:
     # Официальный multi-arch образ Node.js (digest зафиксирован). Код панели
-    # не монтируется из папки приложения: он скачивается при старте из тега
-    # store (CODE_TAG) и кэшируется в /data/code, поэтому обычное обновление
+    # не монтируется из папки приложения: при первом старте он скачивается
+    # из тега store (CODE_TAG) в /data/code, поэтому обычное обновление
     # приложения в Umbrel подхватывает новый код без переустановки.
+    # Доллары удвоены: docker compose интерполирует $ сам, до shell.
     image: node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
     restart: unless-stopped
     init: true
@@ -24,19 +25,19 @@ services:
       - -c
       - |
         set -eu
-        V="${CODE_TAG:?CODE_TAG is not set}"
-        D="/data/code/$V"
-        if [ ! -f "$D/.ready" ]; then
-          echo "[bootstrap] загружаю код $V"
-          rm -rf "$D"
-          mkdir -p "$D"
-          wget -qO /tmp/code.tgz "https://codeload.github.com/killeryStark/Krutikov-lab-store/tar.gz/refs/tags/$V" || exit 1
-          tar xzf /tmp/code.tgz -C "$D" --strip-components=2 "Krutikov-lab-store-$V/krutikov-lab-vless-proxy/app" || exit 1
+        V="$${CODE_TAG:?CODE_TAG is not set}"
+        D="/data/code/$$V"
+        if [ ! -f "$$D/.ready" ]; then
+          echo "[bootstrap] загружаю код $$V"
+          rm -rf "$$D"
+          mkdir -p "$$D"
+          wget -qO /tmp/code.tgz "https://codeload.github.com/killeryStark/Krutikov-lab-store/tar.gz/refs/tags/$$V" || exit 1
+          tar xzf /tmp/code.tgz -C "$$D" --strip-components=2 "Krutikov-lab-store-$$V/krutikov-lab-vless-proxy/app" || exit 1
           rm -f /tmp/code.tgz
-          touch "$D/.ready"
+          touch "$$D/.ready"
         fi
-        export APP_DIR="$D/app"
-        exec sh "$D/app/start.sh"
+        export APP_DIR="$$D/app"
+        exec sh "$$D/app/start.sh"
     # Прокси публикуется прямо на хост: Node-мультиплексор слушает 1080
     # и по первому байту направляет в SOCKS5 или HTTP-инбаунд Xray.
     # Снаружи это 20180. Панель (3001) наружу не торчит: к ней ходит
@@ -50,7 +51,7 @@ services:
       - PUBLIC_PROXY_PORT=20180
       - DATA_DIR=/data
       - XRAY_VERSION=26.10.31
-      - CODE_TAG=vless-1.1.1
+      - CODE_TAG=vless-1.1.2
     volumes:
       # state.json со ссылкой, xray.json, скачанный бинарник xray и код панели.
       - ${APP_DATA_DIR}/data:/data

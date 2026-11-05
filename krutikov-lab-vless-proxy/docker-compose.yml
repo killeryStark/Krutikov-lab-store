@@ -11,16 +11,33 @@ services:
       PROXY_AUTH_ADD: "false"
 
   web:
-    # Официальный multi-arch образ Node.js (digest зафиксирован). Исходники
-    # панели лежат в папке app/ рядом с этим compose и монтируются только
-    # на чтение. Xray-core скачивается при первом старте и кэшируется в /data.
+    # Официальный multi-arch образ Node.js (digest зафиксирован). Код панели
+    # не монтируется из папки приложения: он скачивается при старте из тега
+    # store (CODE_TAG) и кэшируется в /data/code, поэтому обычное обновление
+    # приложения в Umbrel подхватывает новый код без переустановки.
     image: node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
     restart: unless-stopped
     init: true
     stop_grace_period: 15s
     command:
       - sh
-      - /app/start.sh
+      - -c
+      - |
+        set -eu
+        V="${CODE_TAG:?CODE_TAG is not set}"
+        D="/data/code/$V"
+        if [ ! -f "$D/.ready" ]; then
+          echo "[bootstrap] загружаю код $V"
+          rm -rf "$D"
+          mkdir -p "$D/app/public"
+          for f in start.sh extract.js server.js; do
+            wget -qO "$D/app/$f" "https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/$V/app/$f" || exit 1
+          done
+          wget -qO "$D/app/public/index.html" "https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/$V/app/public/index.html" || exit 1
+          touch "$D/.ready"
+        fi
+        export APP_DIR="$D/app"
+        exec sh "$D/app/start.sh"
     # Прокси публикуется прямо на хост: Node-мультиплексор слушает 1080
     # и по первому байту направляет в SOCKS5 или HTTP-инбаунд Xray.
     # Снаружи это 20180. Панель (3001) наружу не торчит: к ней ходит
@@ -33,12 +50,11 @@ services:
       # Порт, который панель показывает клиентам в локальной сети.
       - PUBLIC_PROXY_PORT=20180
       - DATA_DIR=/data
-      - XRAY_VERSION=26.10.21
+      - XRAY_VERSION=26.10.31
+      - CODE_TAG=vless-1.1.1
     volumes:
-      # state.json со ссылкой, xray.json и скачанный бинарник xray.
+      # state.json со ссылкой, xray.json, скачанный бинарник xray и код панели.
       - ${APP_DATA_DIR}/data:/data
-      # Код панели из папки приложения: обновляется вместе со стором.
-      - ${APP_DATA_DIR}/app:/app:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/api/health"]
       interval: 30s

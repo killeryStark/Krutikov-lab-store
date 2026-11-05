@@ -10,7 +10,7 @@ case "$(uname -m)" in
     ;;
 esac
 
-XRAY_VERSION="${XRAY_VERSION:-26.10.21}"
+XRAY_VERSION="${XRAY_VERSION:-26.10.31}"
 APP_DIR="${APP_DIR:-/app}"
 DATA_DIR="${DATA_DIR:-/data}"
 XRAY_BIN="$DATA_DIR/bin/xray"

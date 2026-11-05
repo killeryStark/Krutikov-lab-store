@@ -2,7 +2,7 @@ manifestVersion: 1
 id: krutikov-lab-vless-proxy
 category: networking
 name: VLESS Proxy
-version: "1.1.0"
+version: "1.1.1"
 tagline: SOCKS5 и HTTP-прокси для всей локальной сети из одной VLESS-ссылки
 icon: https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/master/krutikov-lab-vless-proxy/icon.png
 description: >-
@@ -21,9 +21,10 @@ description: >-
   Важно: авторизации нет по замыслу. Порт 20180 не должен быть доступен из интернета — используй приложение только в доверенной локальной сети.
 
 
-  Устройство: один контейнер на официальном node:22-alpine (linux/amd64 + linux/arm64), без npm-зависимостей. Код панели лежит в папке приложения и монтируется только на чтение; бинарник Xray-core 26.10.21 скачивается с официального релиза GitHub при первом запуске и кэшируется в ${APP_DATA_DIR}/data/bin, поэтому дальше контейнер стартует без обращения к сети.
+  Устройство: один контейнер на официальном node:22-alpine (linux/amd64 + linux/arm64), без npm-зависимостей. Код панели при старте скачивается из тега store и кэшируется в ${APP_DATA_DIR}/data/code, поэтому обычное обновление в Umbrel подхватывает новый код без переустановки; бинарник Xray-core 26.10.31 скачивается с официального релиза GitHub при первом запуске и кэшируется в ${APP_DATA_DIR}/data/bin, поэтому дальше контейнер стартует без обращения к сети.
 releaseNotes: >-
-  Движок заменён на Xray-core: теперь работают REALITY-серверы с post-quantum проверкой ML-DSA-65 (параметр pqv) и spiderX. Добавлена передача VLESS encryption. SOCKS5 и HTTP по-прежнему на одном порту 20180.
+  Xray-core обновлён до 26.10.31. Код панели теперь доставляется из тега store при старте и кэшируется в данных приложения: новые версии ставятся обычной кнопкой Update в Umbrel, без переустановки и без потери ссылки. SOCKS5 и HTTP по-прежнему на одном порту 20180.
+
 developer: Krutikov Lab
 website: https://krutikov-lab.ru
 dependencies: []

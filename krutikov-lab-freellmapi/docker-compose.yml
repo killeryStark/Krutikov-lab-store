@@ -15,7 +15,7 @@ services:
     # Multi-arch (amd64 + arm64), проверен 02.11.2026:
     # манифест ghcr.io/tashfeenahmed/freellmapi:latest содержит linux/arm64.
     # Тег latest зафиксирован по digest, версия образа — 0.16.16.
-    image: ghcr.io/tashfeenahmed/freellmapi:latest@sha256:3b744d6714737f2d0c8fe90cdd8517966f22acf615d44cc222c792d40ef9b0a9
+    image: ghcr.io/tashfeenahmed/freellmapi:latest@sha256:22fb2364a629c72b735c802942366ab2d737fa72e84b74f16fbd72715186e5e1
     restart: unless-stopped
     init: true
     stop_grace_period: 30s

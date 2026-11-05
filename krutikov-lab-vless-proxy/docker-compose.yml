@@ -29,11 +29,10 @@ services:
         if [ ! -f "$D/.ready" ]; then
           echo "[bootstrap] загружаю код $V"
           rm -rf "$D"
-          mkdir -p "$D/app/public"
-          for f in start.sh extract.js server.js; do
-            wget -qO "$D/app/$f" "https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/$V/app/$f" || exit 1
-          done
-          wget -qO "$D/app/public/index.html" "https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/$V/app/public/index.html" || exit 1
+          mkdir -p "$D"
+          wget -qO /tmp/code.tgz "https://codeload.github.com/killeryStark/Krutikov-lab-store/tar.gz/refs/tags/$V" || exit 1
+          tar xzf /tmp/code.tgz -C "$D" --strip-components=2 "Krutikov-lab-store-$V/krutikov-lab-vless-proxy/app" || exit 1
+          rm -f /tmp/code.tgz
           touch "$D/.ready"
         fi
         export APP_DIR="$D/app"

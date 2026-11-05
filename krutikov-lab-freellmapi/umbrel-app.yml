@@ -2,7 +2,7 @@ manifestVersion: 1
 id: krutikov-lab-freellmapi
 category: ai
 name: FreeLLMAPI
-version: "0.16.16"
+version: "0.16.19"
 tagline: Один OpenAI-совместимый эндпоинт ко всем бесплатным LLM-провайдерам
 icon: https://raw.githubusercontent.com/killeryStark/Krutikov-lab-store/master/krutikov-lab-freellmapi/icon.png
 description: >-
